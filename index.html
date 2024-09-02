@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatty Client</title>
+    <style>
+        body { 
+            font-family: 'Ubuntu', sans-serif; 
+            background-color: #121212; 
+            color: #ffffff; 
+            margin: 0; 
+            padding: 0; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+        }
+        #chat {
+            flex-grow: 1;
+            margin: 20px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background-color: #1e1e1e;
+            padding: 10px;
+            overflow-y: scroll;
+            height: 60%;
+            box-sizing: border-box;
+        }
+        #message { 
+            width: 70%; 
+            padding: 10px; 
+            margin: 20px; 
+            background-color: #333; 
+            border: none; 
+            border-radius: 4px; 
+            color: white; 
+        }
+        #send { 
+            padding: 10px; 
+            margin: 20px; 
+            background-color: #007bff; 
+            border: none; 
+            border-radius: 4px; 
+            color: white; 
+            cursor: pointer; 
+        }
+        #nameInput, #urlInput { 
+            width: 150px; 
+            padding: 5px; 
+            margin-right: 10px; 
+            background-color: #333; 
+            border: none; 
+            border-radius: 4px; 
+            color: white; 
+        }
+        #controls { 
+            position: absolute; 
+            top: 10px; 
+            right: 10px; 
+            display: flex; 
+            flex-direction: column;
+            gap: 10px;
+        }
+        #status { 
+            margin: 20px; 
+            color: #28a745; 
+        }
+        #resetData { 
+            background-color: #ff4b4b; 
+            border: none; 
+            border-radius: 4px; 
+            color: white; 
+            padding: 5px 10px; 
+            cursor: pointer;
+        }
+    </style>
+    <link rel="icon" href="https://cdn.glitch.global/fb655a3f-3fac-4f74-9094-e18a9b11fcb6/favicon.png?v=1725232822420">
+</head>
+<body>
+    <h1>Chatty Client</h1>
+    <div id="controls">
+        <input type="text" id="nameInput" placeholder="Enter your name" />
+        <input type="text" id="urlInput" placeholder="Enter chat server URL" />
+        <button id="connect">Connect</button>
+        <button id="defaultServer">Show Default Server</button>
+        <button id="resetData">Reset Data</button>
+    </div>
+    <div id="status"></div>
+    <div id="chat"></div>
+    <input type="text" id="message" placeholder="Enter your message..." />
+    <button id="send">Send</button>
+
+    <script>
+        let socket;
+        const chat = document.getElementById('chat');
+        const messageInput = document.getElementById('message');
+        const sendButton = document.getElementById('send');
+        const nameInput = document.getElementById('nameInput');
+        const urlInput = document.getElementById('urlInput');
+        const status = document.getElementById('status');
+        const connectButton = document.getElementById('connect');
+        const defaultServerButton = document.getElementById('defaultServer');
+        const resetDataButton = document.getElementById('resetData');
+
+        const defaultServerURL = 'wss://chatty-default-room.glitch.me'; // Your Glitch project URL
+
+        function connect() {
+            const url = urlInput.value.trim() || defaultServerURL; // Use the URL from the input field or the default one
+
+            if (!url.startsWith('wss://')) {
+                alert('Invalid WebSocket URL. It should start with wss://');
+                return;
+            }
+
+            // Close existing connection if any
+            if (socket) {
+                socket.close();
+            }
+
+            // Connect to the WebSocket server
+            socket = new WebSocket(url);
+
+            // Enable the message input and send button when connected
+            socket.onopen = () => {
+                console.log('Connected to the server');
+                status.textContent = 'Connected';
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+            };
+
+            // Handle incoming messages
+            socket.onmessage = (event) => {
+                const reader = new FileReader();
+                reader.onload = function() {
+                    const message = document.createElement('div');
+                    message.textContent = reader.result; // Display the message text
+                    chat.appendChild(message);
+                    chat.scrollTop = chat.scrollHeight; // Scroll to the bottom
+                };
+                reader.readAsText(event.data); // Convert Blob to text
+            };
+
+            // Handle connection close event
+            socket.onclose = () => {
+                console.log('Disconnected from the server');
+                status.textContent = 'Disconnected';
+                messageInput.disabled = true;
+                sendButton.disabled = true;
+            };
+
+            // Handle errors
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                status.textContent = 'Error: ' + error.message;
+            };
+        }
+
+        // Connect to the server when the "Connect" button is clicked
+        connectButton.onclick = () => {
+            connect();
+        };
+
+        // Show the default server URL in an alert when the "Show Default Server" button is clicked
+        defaultServerButton.onclick = () => {
+            alert(`The default chat server is: ${defaultServerURL}`);
+        };
+
+        // Handle sending messages
+        sendButton.onclick = () => {
+            const message = messageInput.value.trim();
+            const name = nameInput.value.trim() || 'Anonymous';
+            if (message && socket && socket.readyState === WebSocket.OPEN) {
+                const formattedMessage = `${name}: ${message}`;
+                socket.send(String(formattedMessage)); // Ensure the message is sent as a string
+                messageInput.value = '';
+            }
+        };
+
+        // Handle pressing the Enter key to send a message
+        messageInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendButton.click();
+            }
+        });
+
+        // Automatically connect to the default server when the page loads
+        window.onload = () => {
+            let storedName = localStorage.getItem('chatName');
+            let storedURL = localStorage.getItem('chatURL');
+
+            if (!storedName) {
+                storedName = prompt('Please enter your name:');
+                localStorage.setItem('chatName', storedName);
+            }
+
+            if (!storedURL) {
+                storedURL = defaultServerURL;
+                localStorage.setItem('chatURL', storedURL);
+            }
+
+            nameInput.value = storedName;
+            urlInput.value = storedURL;
+
+            connect();
+        };
+
+        // Update the stored name whenever it changes
+        nameInput.addEventListener('input', () => {
+            const name = nameInput.value.trim();
+            localStorage.setItem('chatName', name);
+        });
+
+        // Allow the user to reset their data
+        resetDataButton.onclick = () => {
+            localStorage.removeItem('chatName');
+            localStorage.removeItem('chatURL');
+            alert('Data reset. Please reload the page to re-enter your details.');
+        };
+    </script>
+</body>
+</html>
