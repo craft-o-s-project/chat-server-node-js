@@ -1,9 +1,3 @@
-Run the server.js file 
-command:
-
-node server.js
-
-that is how you run the chatty server
-also you need:
-
-ws, express, and, path
+before you do the node server.js
+you need to run this command: npm install ws express http
+then you can enjoy running a chatty server
