@@ -23,7 +23,6 @@
             background-color: #1e1e1e;
             padding: 10px;
             overflow-y: scroll;
-            height: 60%;
             box-sizing: border-box;
         }
         #message { 
@@ -105,22 +104,19 @@
         const defaultServerURL = 'wss://chatty-default-room.glitch.me'; // Your Glitch project URL
 
         function connect() {
-            const url = urlInput.value.trim() || defaultServerURL; // Use the URL from the input field or the default one
+            const url = urlInput.value.trim() || defaultServerURL;
 
             if (!url.startsWith('wss://')) {
                 alert('Invalid WebSocket URL. It should start with wss://');
                 return;
             }
 
-            // Close existing connection if any
             if (socket) {
                 socket.close();
             }
 
-            // Connect to the WebSocket server
             socket = new WebSocket(url);
 
-            // Enable the message input and send button when connected
             socket.onopen = () => {
                 console.log('Connected to the server');
                 status.textContent = 'Connected';
@@ -128,19 +124,15 @@
                 sendButton.disabled = false;
             };
 
-            // Handle incoming messages
             socket.onmessage = (event) => {
-                const reader = new FileReader();
-                reader.onload = function() {
-                    const message = document.createElement('div');
-                    message.textContent = reader.result; // Display the message text
-                    chat.appendChild(message);
-                    chat.scrollTop = chat.scrollHeight; // Scroll to the bottom
-                };
-                reader.readAsText(event.data); // Convert Blob to text
+                event.data.text().then((message) => {
+                    const messageElement = document.createElement('div');
+                    messageElement.textContent = message;
+                    chat.appendChild(messageElement);
+                    chat.scrollTop = chat.scrollHeight;
+                });
             };
 
-            // Handle connection close event
             socket.onclose = () => {
                 console.log('Disconnected from the server');
                 status.textContent = 'Disconnected';
@@ -148,42 +140,42 @@
                 sendButton.disabled = true;
             };
 
-            // Handle errors
             socket.onerror = (error) => {
                 console.error('WebSocket error:', error);
                 status.textContent = 'Error: ' + error.message;
             };
         }
 
-        // Connect to the server when the "Connect" button is clicked
         connectButton.onclick = () => {
             connect();
         };
 
-        // Show the default server URL in an alert when the "Show Default Server" button is clicked
         defaultServerButton.onclick = () => {
             alert(`The default chat server is: ${defaultServerURL}`);
         };
 
-        // Handle sending messages
         sendButton.onclick = () => {
             const message = messageInput.value.trim();
             const name = nameInput.value.trim() || 'Anonymous';
             if (message && socket && socket.readyState === WebSocket.OPEN) {
                 const formattedMessage = `${name}: ${message}`;
-                socket.send(String(formattedMessage)); // Ensure the message is sent as a string
+                socket.send(formattedMessage);
+
+                const myMessage = document.createElement('div');
+                myMessage.textContent = formattedMessage;
+                chat.appendChild(myMessage);
+                chat.scrollTop = chat.scrollHeight;
+
                 messageInput.value = '';
             }
         };
 
-        // Handle pressing the Enter key to send a message
         messageInput.addEventListener('keypress', (event) => {
             if (event.key === 'Enter') {
                 sendButton.click();
             }
         });
 
-        // Automatically connect to the default server when the page loads
         window.onload = () => {
             let storedName = localStorage.getItem('chatName');
             let storedURL = localStorage.getItem('chatURL');
@@ -204,13 +196,11 @@
             connect();
         };
 
-        // Update the stored name whenever it changes
         nameInput.addEventListener('input', () => {
             const name = nameInput.value.trim();
             localStorage.setItem('chatName', name);
         });
 
-        // Allow the user to reset their data
         resetDataButton.onclick = () => {
             localStorage.removeItem('chatName');
             localStorage.removeItem('chatURL');
